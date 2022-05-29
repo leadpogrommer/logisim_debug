@@ -25,6 +25,8 @@ import java.io.File
 import java.io.IOError
 import java.io.IOException
 import java.util.StringJoiner
+import javax.swing.JOptionPane
+import javax.swing.JPopupMenu
 import javax.swing.SwingUtilities
 import kotlin.reflect.full.functions
 import kotlin.reflect.full.memberProperties
@@ -75,7 +77,11 @@ class DebugTool: Tool(){
             }
         })
         project = canvas.project
-        server = Server()
+        server = Server({
+            SwingUtilities.invokeLater {
+                JOptionPane.showMessageDialog(canvas, it)
+            }
+        })
         serverThread = Thread(server)
         serverThread.isDaemon = true
         serverThread.start()
@@ -160,6 +166,13 @@ class DebugTool: Tool(){
         if(isFetching == 0)return null
 
         // now we sure it is time
+        val halted = getTunnelValue(cdmTunnels, cdmState, "halted_dbg")
+        var pc = getTunnelValue(cdmTunnels, cdmState, "PC")
+
+        if(halted != 0){
+            pc -= 1
+        }
+
 
         val registers = CdmRegisters(
             getTunnelValue(cdmTunnels, cdmState, "r0"),
@@ -167,7 +180,7 @@ class DebugTool: Tool(){
             getTunnelValue(cdmTunnels, cdmState, "r2"),
             getTunnelValue(cdmTunnels, cdmState, "r3"),
             getTunnelValue(cdmTunnels, cdmState, "PSR"),
-            getTunnelValue(cdmTunnels, cdmState, "PC"),
+            pc,
             getTunnelValue(cdmTunnels, cdmState, "SP"),
         )
 

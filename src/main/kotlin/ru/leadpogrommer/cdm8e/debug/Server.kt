@@ -13,7 +13,7 @@ import javax.swing.SwingUtilities
 import kotlinx.serialization.*
 import kotlinx.serialization.json.*
 
-class Server: WebSocketServer(InetSocketAddress(1337)) {
+class Server(val showMessage: (String)->Unit): WebSocketServer(InetSocketAddress(1337)) {
     var currentConnection: WebSocket? = null
     val receiveQueue = ArrayBlockingQueue<CdmRequest>(33)
     init{
@@ -48,10 +48,12 @@ class Server: WebSocketServer(InetSocketAddress(1337)) {
 
     override fun onError(conn: WebSocket?, ex: Exception?) {
         System.err.println("[WS] Error: ${ex?.message}")
+        showMessage("[WS] Error: ${ex?.message}")
     }
 
     override fun onStart() {
         println("Server started")
+        showMessage("Debug server started")
         val tickControlThread = TickControlThread(receiveQueue, ::sendToClient)
         tickControlThread.isDaemon = true
         tickControlThread.start()
@@ -80,7 +82,10 @@ class TickControlThread(val receiveQueue: BlockingQueue<CdmRequest>, val sendMes
             "pause" -> running = false
             "continue" -> runSimulation(breakOnLine = false)
             "step" -> runSimulation(breakOnLine = true)
-            "path" -> DebugTool.INSTANCE.loadAndRestart(msg.path!!)
+            "path" -> {
+                DebugTool.INSTANCE.loadAndRestart(msg.path!!)
+                sendMessage(Json.encodeToString(CdmStateResponse(CdmState(Array(256){0}.toList(), CdmRegisters(0, 0, 0, 0, 0, 0, 0)), "state")))
+            }
         }
     }
 
